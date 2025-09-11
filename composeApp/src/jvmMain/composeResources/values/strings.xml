@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Apk Uploader</string>
+    <string name="proceed">Proceed</string>
+    <string name="select_device">Select device</string>
+    <string name="refresh">Refresh</string>
+    <string name="device_not_found">Device not found</string>
+    <string name="device_empty_list">Click refresh icon to scan for devices</string>
+    <string name="adb_not_found">Android Debug Bridge (ADB) not found. Please install it.</string>
+    <string name="adb_not_found_instruction_1">Download and add to PATH the tools from the </string>
+    <string name="adb_not_found_instruction_2">https://developer.android.com/tools/releases/platform-tools</string>
+    <string name="adb_not_found_instruction_3">official Android website</string>
+    <string name="pick_apk_file">Pick APK file</string>
+    <string name="file_not_found">File not found</string>
+    <string name="pick">Pick</string>
+    <string name="initial_message">1. Choose APK file\n2. Choose device\n3. Click Proceed</string>
+    <string name="uploading_and_installing">Uploading and installing %1$d%%</string>
+    <string name="apk_installed_successfully">APK installed successfully! 🎉</string>
+    <string name="failed_to_install_apk">Failed to install APK. Check the output for details.</string>
+</resources>
