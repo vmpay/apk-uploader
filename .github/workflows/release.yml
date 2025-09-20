@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create Release ${{ github.ref }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+  build_and_upload:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target_suffix: LinuxX64Deb
+            target_folder: deb
+          - os: ubuntu-24.04-arm
+            target_suffix: LinuxArm64Deb
+            target_folder: deb
+          - os: macos-15-intel
+            target_suffix: MacOSX64Dmg
+            target_folder: dmg
+          - os: macos-15
+            target_suffix: MacOSArm64Dmg
+            target_folder: dmg
+          - os: windows-latest
+            target_suffix: WindowsX64Msi
+            target_folder: msi
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        if: runner.os != 'Windows'
+        run: chmod +x gradlew
+
+      - name: Build with Gradle (MacOS and Linux step)
+        if: runner.os != 'Windows'
+        run: |
+          ./gradlew :composeApp:packageDistributionForCurrentOS --no-configuration-cache
+
+      - name: Build with Gradle (Windows step)
+        if: runner.os == 'Windows'
+        run: |
+          ./gradlew.bat :composeApp:packageDistributionForCurrentOS --no-configuration-cache
+
+      - name: List files (macOS and Linux)
+        if: runner.os != 'Windows'
+        run: ls -R composeApp/build/compose/binaries/main
+
+      - name: List files (Windows)
+        if: runner.os == 'Windows'
+        run: dir -R composeApp/build/compose/binaries/main
+
+      - name: Rename files
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          # Define the source directory based on the matrix target_folder
+          # Use absolute path for robustness on Windows
+          SOURCE_DIR="${{ github.workspace }}/composeApp/build/compose/binaries/main/${{ matrix.target_folder }}"
+          
+          # Define the target suffix from the matrix
+          TARGET_SUFFIX="${{ matrix.target_suffix }}"
+          
+          # Use mv (Linux/macOS) to rename files
+          if [[ "${{ runner.os }}" != "Windows" ]]; then
+            # Use find/mv for non-Windows (original working logic)
+            find "$SOURCE_DIR" -maxdepth 1 -type f -print0 | while IFS= read -r -d $'\0' file; do
+              filename=$(basename "$file")
+              name_part="${filename%.*}"
+              ext_part="${filename##*.}"
+              new_filename="${name_part}-${TARGET_SUFFIX}.${ext_part}"
+          
+              echo "Renaming '$filename' to '$new_filename'"
+              mv "$file" "$SOURCE_DIR/$new_filename"
+            done
+          # Use ren (Windows) to rename files
+          else
+            # Iterate using the full, absolute path
+            for full_path in "$SOURCE_DIR"/*; do
+              # Check if it's a file
+              if [ -f "$full_path" ]; then
+                # Extract filename for processing
+                filename=$(basename "$full_path")
+                name_part="${filename%.*}"
+                ext_part="${filename##*.}"
+                new_filename="${name_part}-${TARGET_SUFFIX}.${ext_part}"
+          
+                echo "Renaming '$filename' to '$new_filename'"
+          
+                # Use 'cmd /c ren' with the absolute path for the source file and the new filename
+                # Note: 'ren' only accepts the new filename, not the new full path
+                cmd /c ren "$full_path" "$new_filename"
+              fi
+            done
+          fi
+
+      - name: Upload assets (MacOS)
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag' && runner.os == 'macOS'
+        with:
+          files: |
+            composeApp/build/compose/binaries/main/dmg/*-${{ matrix.target_suffix }}.dmg
+
+      - name: Upload assets (Linux)
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag' && runner.os == 'Linux'
+        with:
+          files: |
+            composeApp/build/compose/binaries/main/deb/*-${{ matrix.target_suffix }}*.deb
+
+      - name: Upload assets (Windows)
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag' && runner.os == 'Windows'
+        with:
+          files: |
+            composeApp/build/compose/binaries/main/msi/*.msi

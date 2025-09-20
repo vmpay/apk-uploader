@@ -42,6 +42,9 @@ compose.desktop {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "eu.vmpay.apk.uploader"
             packageVersion = "1.0.0"
+            description = "Uploads apk files to the connected device using android debug bridge."
+            copyright = "© 2025 vmpay. All rights reserved."
+            vendor = "vmpay"
         }
     }
 }
