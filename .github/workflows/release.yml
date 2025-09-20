@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build_and_release:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        os: [ macos-latest, ubuntu-latest, windows-latest ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for gradlew
+        if: runner.os != 'Windows'
+        run: chmod +x gradlew
+
+      - name: Build with Gradle (MacOS and Linux step)
+        if: runner.os != 'Windows'
+        run: |
+          ./gradlew :composeApp:packageDistributionForCurrentOS --no-configuration-cache
+
+      - name: Build with Gradle (Windows step)
+        if: runner.os == 'Windows'
+        run: |
+          ./gradlew.bat :composeApp:packageDistributionForCurrentOS --no-configuration-cache
+
+      #      - name: List files (macOS and Linux)
+      #        if: runner.os != 'Windows'
+      #        run: ls -R composeApp/build/compose/binaries/main
+#
+      #      - name: List files (Windows)
+#        if: runner.os == 'Windows'
+      #        run: dir -R composeApp/build/compose/binaries/main
+
+      - name: Create and Upload Release Asset (macOS)
+        if: runner.os == 'macOS'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: composeApp/build/compose/binaries/main/dmg/eu.vmpay.apk.uploader-1.0.0.dmg
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Create and Upload Release Asset (Linux)
+        if: runner.os == 'Linux'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: composeApp/build/compose/binaries/main/deb/eu.vmpay.apk.uploader_1.0.0-1_amd64.deb
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Create and Upload Release Asset (Windows)
+        if: runner.os == 'Windows'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: composeApp/build/compose/binaries/main/msi/eu.vmpay.apk.uploader-1.0.0.msi
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
